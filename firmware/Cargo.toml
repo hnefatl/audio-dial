@@ -17,21 +17,9 @@ nb = "0.1.2"
 embedded-hal = "0.2.3"
 fixed = "2.0.0-alpha.11"
 void = { version = "1.0.2", default-features = false }
-
-# Custom fork of bytes to include the work on integrating portable-atomics.
-bytes = { version = "1.5.0", default-features = false, features = [
-    "extra-platforms",
-] }
-
-# The atmega328p doesn't support atomic CAS or atomics on values larger than u8.
-# But it is a single-threaded system, so we don't really need atomics since we can
-# just disable interrupts.
-portable-atomic = { version = "1.4.3", features = [
-    "unsafe-assume-single-core",
-] }
-prost = { version = "0.12.1", default-features = false, features = [
-    "prost-derive",
-] }
+binary_serde = "1"
+az = "1"
+thiserror-no-std = "2"
 
 [dependencies.arduino-hal]
 git = "https://github.com/rahix/avr-hal"
