@@ -1,0 +1,14 @@
+[package]
+name = "lib"
+version = "0.0.0"
+authors = ["Keith <hnefatl@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "lib"
+
+[dependencies]
+fixed = "2.0.0-alpha.11"
+binary_serde = "1"
+thiserror-no-std = "2"

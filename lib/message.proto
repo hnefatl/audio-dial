@@ -1,5 +1,0 @@
-syntax = "proto3";
-
-message Message {
-    repeated uint32 percentages = 1;
-}

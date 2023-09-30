@@ -1,5 +1,5 @@
 [build]
-target = "firmware/avr-specs/avr-atmega328p.json"
+target = "avr-specs/avr-atmega328p.json"
 
 [target.'cfg(target_arch = "avr")']
 runner = "ravedude nano-new -cb 57600 -P /dev/ttyUSB0"
