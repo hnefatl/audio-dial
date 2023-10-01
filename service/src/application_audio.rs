@@ -18,6 +18,64 @@ use windows::Win32::System::Com::{CoCreateInstance, CoInitialize, CLSCTX_ALL, ST
 pub type ProcessId = NonZeroU32;
 pub type WindowsResult<T> = windows::core::Result<T>;
 
+pub struct AudioState {
+    pub application_audios: Vec<ApplicationAudio>,
+}
+impl AudioState {
+    pub fn create() -> WindowsResult<Self> {
+        Ok(AudioState {
+            application_audios: Self::_get_audio_sessions()?,
+        })
+    }
+
+    unsafe fn _get_audio_device_enumerator() -> WindowsResult<IMMDeviceEnumerator> {
+        CoInitialize(None)?;
+        CoCreateInstance(&Audio::MMDeviceEnumerator, None, CLSCTX_ALL)
+    }
+
+    fn _get_audio_sessions() -> WindowsResult<Vec<ApplicationAudio>> {
+        unsafe {
+            let device_enumerator = Self::_get_audio_device_enumerator()?;
+            let output_device = device_enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia)?;
+        
+            let session_manager: IAudioSessionManager2 = output_device.Activate(CLSCTX_ALL, None)?;
+            let session_enumerator = session_manager.GetSessionEnumerator()?;
+        
+            let mut result_sessions = vec![];
+            for i in 0..session_enumerator.GetCount()? {
+                let session_control = session_enumerator.GetSession(i)?;
+                let session: IAudioSessionControl2 = session_control.cast()?;
+                let Some(process_id) = NonZeroU32::new(session.GetProcessId()?) else {
+                    // System service or otherwise inaccessible from current user, don't want to process it.
+                    continue;
+                };
+                result_sessions.push(ApplicationAudio::new(process_id, session.cast()?));
+            }
+        
+            Ok(result_sessions)
+        }
+    }
+
+    fn _get_audio_devices() -> WindowsResult<HashMap<String, IMMDevice>> {
+        unsafe {
+            let enumerator = Self::_get_audio_device_enumerator()?;
+            // Get all active output devices.
+            let devices = enumerator.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)?;
+
+            let mut result_devices = HashMap::new();
+            for i in 0..devices.GetCount()? {
+                let device = devices.Item(i)?;
+                let properties = device.OpenPropertyStore(STGM_READ)?;
+                let device_desc_container = properties.GetValue(&PKEY_Device_DeviceDesc)?;
+                let device_desc = device_desc_container.Anonymous.Anonymous.Anonymous.pwszVal;
+
+                result_devices.insert(device_desc.to_string()?, device);
+            }
+            Ok(result_devices)
+        }
+    }
+}
+
 pub struct ApplicationAudio {
     process_id: ProcessId,
     session: ISimpleAudioVolume,
@@ -62,54 +120,10 @@ impl ApplicationAudio {
         unsafe { self.session.SetMasterVolume(volume, std::ptr::null()) }
     }
 
+    pub fn get_mute(&self) -> WindowsResult<bool> {
+        unsafe { Ok(self.session.GetMute()?.into()) }
+    }
     pub fn set_mute(&mut self, mute: bool) -> WindowsResult<()> {
         unsafe { self.session.SetMute(mute, std::ptr::null()) }
-    }
-}
-
-unsafe fn get_audio_device_enumerator() -> WindowsResult<IMMDeviceEnumerator> {
-    CoInitialize(None)?;
-    CoCreateInstance(&Audio::MMDeviceEnumerator, None, CLSCTX_ALL)
-}
-
-pub fn get_audio_devices() -> WindowsResult<HashMap<String, IMMDevice>> {
-    unsafe {
-        let enumerator = get_audio_device_enumerator()?;
-        // Get all active output devices.
-        let devices = enumerator.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)?;
-
-        let mut result_devices = HashMap::new();
-        for i in 0..devices.GetCount()? {
-            let device = devices.Item(i)?;
-            let properties = device.OpenPropertyStore(STGM_READ)?;
-            let device_desc_container = properties.GetValue(&PKEY_Device_DeviceDesc)?;
-            let device_desc = device_desc_container.Anonymous.Anonymous.Anonymous.pwszVal;
-
-            result_devices.insert(device_desc.to_string()?, device);
-        }
-        Ok(result_devices)
-    }
-}
-
-pub fn get_audio_sessions() -> WindowsResult<Vec<ApplicationAudio>> {
-    unsafe {
-        let device_enumerator = get_audio_device_enumerator()?;
-        let output_device = device_enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia)?;
-
-        let session_manager: IAudioSessionManager2 = output_device.Activate(CLSCTX_ALL, None)?;
-        let session_enumerator = session_manager.GetSessionEnumerator()?;
-
-        let mut result_sessions = vec![];
-        for i in 0..session_enumerator.GetCount()? {
-            let session_control = session_enumerator.GetSession(i)?;
-            let session: IAudioSessionControl2 = session_control.cast()?;
-            let Some(process_id) = NonZeroU32::new(session.GetProcessId()?) else {
-                // System service or otherwise inaccessible from current user, don't want to process it.
-                continue;
-            };
-            result_sessions.push(ApplicationAudio::new(process_id, session.cast()?));
-        }
-
-        Ok(result_sessions)
     }
 }

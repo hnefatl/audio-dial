@@ -10,6 +10,13 @@ name = "audio-dial-service"
 path = "src/main.rs"
 
 [dependencies]
+lib = { path = "../lib" }
+serde = "1.0"
+serde_derive = "1.0"
+serde_yaml = "0.9"
+serde_arrays = "0.1"
+thiserror = "1.0"
+serialport = "4.2"
 windows = { version = "0.51", features = [
     "Win32_Media_Audio",
     "Win32_System_Com",
