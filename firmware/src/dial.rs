@@ -44,11 +44,11 @@ impl<const N: usize> Dials<N> {
         Dials { dials }
     }
 
-    pub fn snapshot<E>(&self, adc: &mut Adc) -> Result<Snapshot<N>, E> {
+    pub fn snapshot(&self, adc: &mut Adc) -> Snapshot<N> {
         let mut percentages = [Percentage::ZERO; N];
         for (i, dial) in self.dials.iter().enumerate() {
             percentages[i] = dial.read_percentage(adc);
         }
-        Ok(Snapshot::new(percentages))
+        Snapshot::new(percentages)
     }
 }

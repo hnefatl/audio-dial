@@ -4,14 +4,17 @@
 #![feature(generic_const_exprs)]
 #![feature(generic_arg_infer)]
 
-use arduino_hal::{default_serial, hal::adc};
-
 use panic_halt as _;
+
+use arduino_hal::{default_serial, hal::adc};
+use serialisable::SerialWriteDevice;
 
 mod dial;
 use dial::*;
-use ufmt::uWrite;
 mod serialisable;
+use lib::data::WireFormat;
+
+const REFRESH_RATE_MS: u16 = 100;
 
 #[arduino_hal::entry]
 fn main() -> ! {
@@ -20,31 +23,24 @@ fn main() -> ! {
     let mut serial = default_serial!(dp, pins, 57600);
     let mut adc = arduino_hal::adc::Adc::new(dp.ADC, Default::default());
 
-    let mut led = pins.d13.into_output();
+    let dials = Dials::new([
+        Dial::new(pins.a1.into_analog_input(&mut adc).into_channel()),
+        Dial::new(pins.a2.into_analog_input(&mut adc).into_channel()),
+        Dial::new(pins.a3.into_analog_input(&mut adc).into_channel()),
+        Dial::new(pins.a4.into_analog_input(&mut adc).into_channel()),
+        Dial::new(pins.a5.into_analog_input(&mut adc).into_channel()),
+        Dial::new(adc::channel::ADC6.into_channel()),
+        Dial::new(adc::channel::ADC7.into_channel()),
+    ]);
 
-    let adc6 = adc::channel::ADC6;
-    let adc5 = pins.a5.into_analog_input(&mut adc);
-
-    //let dials = Dials::new([
-    //    Dial::new(adc6.into_channel()),
-    //    Dial::new(adc5.into_channel()),
-    //]);
-
-    let dial = Dial::new(adc6.into_channel());
     loop {
-        let dial_value = dial.read(&mut adc);
+        let snapshot = dials.snapshot(&mut adc);
+        let encoded: WireFormat<_> = snapshot.into();
 
-        let mut mask = 1000u16;
-        while mask > 0 {
-            let digit = (dial_value / mask) as u32 % 10;
-            serial
-                .write_char(char::from_digit(digit, 10).unwrap())
-                .unwrap();
-            mask /= 10;
+        if serial.serialize(&encoded).is_err() {
+            // Do nothing, hard to surface errors atm since serial is only used for data.
         }
-        serial.write_char('\n').unwrap();
-        serial.flush();
 
-        arduino_hal::delay_ms(1000);
+        arduino_hal::delay_ms(REFRESH_RATE_MS);
     }
 }
