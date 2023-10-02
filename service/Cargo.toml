@@ -17,6 +17,10 @@ serde_yaml = "0.9"
 serde_arrays = "0.1"
 thiserror = "1.0"
 serialport = "4.2"
+binary_serde = { version = "1", features = ["std"] }
+regex = "1.9"
+serde_regex = "1.1"
+derivative = "2.2"
 windows = { version = "0.51", features = [
     "Win32_Media_Audio",
     "Win32_System_Com",

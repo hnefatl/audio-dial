@@ -18,12 +18,13 @@ use windows::Win32::System::Com::{CoCreateInstance, CoInitialize, CLSCTX_ALL, ST
 pub type ProcessId = NonZeroU32;
 pub type WindowsResult<T> = windows::core::Result<T>;
 
-pub struct AudioState {
+/// A wrapper around the audio state of the system.
+pub struct AudioInterface {
     pub application_audios: Vec<ApplicationAudio>,
 }
-impl AudioState {
+impl AudioInterface {
     pub fn create() -> WindowsResult<Self> {
-        Ok(AudioState {
+        Ok(AudioInterface {
             application_audios: Self::_get_audio_sessions()?,
         })
     }
@@ -76,6 +77,7 @@ impl AudioState {
     }
 }
 
+/// A wrapper around the audio state of an application.
 pub struct ApplicationAudio {
     process_id: ProcessId,
     session: ISimpleAudioVolume,
